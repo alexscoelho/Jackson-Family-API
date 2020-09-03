@@ -25,20 +25,64 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
+# 1) Get all family members:
 @app.route('/members', methods=['GET'])
 def handle_hello():
-
-    # this is how you can use the Family datastructure by calling its methods
     members = jackson_family.get_all_members()
+    if members is None:
+        raise APIException("No users found", 400)
     response_body = {
         "hello": "world",
         "family": members
     }
-
-
     return jsonify(response_body), 200
 
-# this only runs if `$ python src/app.py` is executed
+# 2) Retrieve one member
+@app.route('/member/<int:member_id>', methods=['GET'])
+def get_a_member(member_id):
+    member = jackson_family.get_member(int(member_id))
+    if member is None:
+        raise APIException("This member does not exist", 400)
+    response_body = {
+        "member": member
+    }
+    return jsonify(response_body), 200
+
+# endpoint to add a member 
+@app.route('/member', methods=['POST'])
+def add_a_member():
+    response_body = "Bad request"
+    code = 400
+    try: 
+        body = request.get_json()
+        if 'first_name' not in body:
+            raise ValueError("First name not in body")
+            # add nested error handling
+        if 'age' not in body:
+            raise ValueError("Agenot in body")
+        if 'lucky_numbers' not in body:
+            raise ValueError("Lucky numbers not in body")
+        
+        member = {
+            'first_name': body['first_name'],
+            'age': body['age'],
+            'lucky_numbers': body['lucky_numbers'],
+        }
+        if 'id' in body:
+            member['id'] = body['id']
+            
+        jackson_family.add_member(member)
+        # the response
+        response_body = "Success"
+        code = 200
+    except Exception as e:
+        # if e is ValueError:
+        response_body = str(e)
+        code = 400
+    return jsonify(response_body), code
+    
+
+# this only runs if `$ python src/app.py` is executed, these lines always go at the end
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
     app.run(host='0.0.0.0', port=PORT, debug=True)
